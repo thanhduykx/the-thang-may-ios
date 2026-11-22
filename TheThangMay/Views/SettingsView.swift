@@ -10,16 +10,10 @@ struct SettingsView: View {
         Form {
             Section {
                 statusRow(
-                    title: "Phần cứng NFC",
+                    title: "Phiên quét NFC",
                     ok: NFCScanner.isAvailable,
                     okText: "Sẵn sàng đọc thẻ",
                     badText: "Không khả dụng"
-                )
-                statusRow(
-                    title: "Quyền NFC của app",
-                    ok: NFCScanner.hasNFCEntitlement,
-                    okText: "Đã có entitlement",
-                    badText: "Thiếu entitlement"
                 )
                 statusRow(
                     title: "Mô tả quyền (Info.plist)",
@@ -30,10 +24,8 @@ struct SettingsView: View {
             } header: {
                 Text("NFC")
             } footer: {
-                if !NFCScanner.hasNFCEntitlement {
-                    Text("App thiếu entitlement NFC — đây chính là lý do báo “không hỗ trợ quét”. Cần bản IPA được ký bằng tài khoản Apple Developer trả phí; Apple ID miễn phí không cấp quyền NFC Tag Reading.")
-                } else if !NFCScanner.isAvailable {
-                    Text("Entitlement đã có nhưng phiên quét chưa sẵn sàng. Đóng app, tắt bảng Apple Pay/Face ID rồi mở lại.")
+                if !NFCScanner.isAvailable {
+                    Text("Thường do app chưa được ký với entitlement NFC. Apple ID miễn phí không cấp quyền NFC Tag Reading — cần bản IPA ký bằng tài khoản Apple Developer trả phí.")
                 }
             }
 

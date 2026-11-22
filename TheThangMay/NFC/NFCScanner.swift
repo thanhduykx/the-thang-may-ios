@@ -1,6 +1,5 @@
 import Foundation
 import CoreNFC
-import Security
 
 /// Kết quả một lần đọc thẻ.
 struct ScanResult {
@@ -23,20 +22,6 @@ final class NFCScanner: NSObject, ObservableObject {
     private var didSucceed = false
 
     static var isAvailable: Bool { NFCTagReaderSession.readingAvailable }
-
-    /// App có được ký với entitlement NFC hay không.
-    static var hasNFCEntitlement: Bool {
-        guard let task = SecTaskCreateFromSelf(nil),
-              let value = SecTaskCopyValueForEntitlement(
-                  task,
-                  "com.apple.developer.nfc.readersession.formats" as CFString,
-                  nil
-              ) else {
-            return false
-        }
-        if let formats = value as? [String] { return !formats.isEmpty }
-        return true
-    }
 
     /// Info.plist có NFCReaderUsageDescription hay không.
     static var hasUsageDescription: Bool {
