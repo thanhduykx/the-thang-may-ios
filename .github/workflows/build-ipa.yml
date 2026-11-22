@@ -3,7 +3,7 @@ name: Build IPA (unsigned)
 on:
   workflow_dispatch:
   push:
-    branches: [ main, master ]
+    branches: [main]
 
 jobs:
   build:
@@ -14,21 +14,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Tìm project
-        id: find
-        run: |
-          PROJECT_PATH=$(find "$GITHUB_WORKSPACE" -maxdepth 4 -name "TheThangMay.xcodeproj" -type d | head -n 1)
-          if [ -z "$PROJECT_PATH" ]; then
-            echo "Không tìm thấy TheThangMay.xcodeproj"; exit 1
-          fi
-          echo "project=$PROJECT_PATH" >> "$GITHUB_OUTPUT"
-          echo "dir=$(dirname "$PROJECT_PATH")" >> "$GITHUB_OUTPUT"
-          echo "Đang build tại: $(dirname "$PROJECT_PATH")"
+      - name: List files
+        run: ls -la
 
-      - name: Build (không ký)
-        working-directory: ${{ steps.find.outputs.dir }}
+      - name: Build unsigned
         run: |
-          set -o pipefail
           xcodebuild \
             -project TheThangMay.xcodeproj \
             -scheme TheThangMay \
@@ -41,21 +31,18 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             build
 
-      - name: Đóng gói .ipa
-        working-directory: ${{ steps.find.outputs.dir }}
+      - name: Package IPA
         run: |
-          APP_PATH=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name "*.app" | head -n 1)
-          if [ -z "$APP_PATH" ]; then echo "Không thấy .app"; exit 1; fi
           mkdir -p dist/Payload
-          cp -R "$APP_PATH" dist/Payload/
+          cp -R build/Build/Products/Release-iphoneos/TheThangMay.app dist/Payload/
           cd dist
           zip -qry TheThangMay-unsigned.ipa Payload
           ls -lh TheThangMay-unsigned.ipa
 
-      - name: Upload artefact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: TheThangMay-unsigned-ipa
-          path: ${{ steps.find.outputs.dir }}/dist/TheThangMay-unsigned.ipa
+          path: dist/TheThangMay-unsigned.ipa
           if-no-files-found: error
           retention-days: 30
