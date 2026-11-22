@@ -1,0 +1,61 @@
+name: Build IPA (unsigned)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Tìm project
+        id: find
+        run: |
+          PROJECT_PATH=$(find "$GITHUB_WORKSPACE" -maxdepth 4 -name "TheThangMay.xcodeproj" -type d | head -n 1)
+          if [ -z "$PROJECT_PATH" ]; then
+            echo "Không tìm thấy TheThangMay.xcodeproj"; exit 1
+          fi
+          echo "project=$PROJECT_PATH" >> "$GITHUB_OUTPUT"
+          echo "dir=$(dirname "$PROJECT_PATH")" >> "$GITHUB_OUTPUT"
+          echo "Đang build tại: $(dirname "$PROJECT_PATH")"
+
+      - name: Build (không ký)
+        working-directory: ${{ steps.find.outputs.dir }}
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project TheThangMay.xcodeproj \
+            -scheme TheThangMay \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Đóng gói .ipa
+        working-directory: ${{ steps.find.outputs.dir }}
+        run: |
+          APP_PATH=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name "*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then echo "Không thấy .app"; exit 1; fi
+          mkdir -p dist/Payload
+          cp -R "$APP_PATH" dist/Payload/
+          cd dist
+          zip -qry TheThangMay-unsigned.ipa Payload
+          ls -lh TheThangMay-unsigned.ipa
+
+      - name: Upload artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TheThangMay-unsigned-ipa
+          path: ${{ steps.find.outputs.dir }}/dist/TheThangMay-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30

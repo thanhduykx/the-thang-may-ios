@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+
+# Wallet server
+node_modules/
+npm-debug.log*
+wallet-server/certs/*.pem
+wallet-server/certs/*.p12
+.env
+
+# Swift Package Manager
+.build/
+.swiftpm/

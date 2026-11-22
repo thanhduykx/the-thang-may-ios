@@ -1,0 +1,17 @@
+{
+  "name": "the-thang-may-wallet",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Máy chủ ký pass Apple Wallet cho app Thẻ Thang Máy",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "passkit-generator": "^3.1.11"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

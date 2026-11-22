@@ -1,0 +1,92 @@
+name: Build IPA (signed)
+
+# Cần thêm 6 secret trong GitHub repo → Settings → Secrets and variables → Actions:
+#   BUILD_CERTIFICATE_BASE64     .p12 xuất từ Keychain, base64
+#   P12_PASSWORD                 mật khẩu file .p12
+#   PROVISIONING_PROFILE_BASE64  file .mobileprovision, base64
+#   PROVISIONING_PROFILE_NAME    tên profile (như trong Apple Developer)
+#   APPLE_TEAM_ID                10 ký tự Team ID
+#   KEYCHAIN_PASSWORD            mật khẩu tạm bất kỳ
+#
+# Tạo base64 trên Windows (PowerShell):
+#   [Convert]::ToBase64String([IO.File]::ReadAllBytes("cert.p12")) | Set-Clipboard
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Tìm project
+        id: find
+        run: |
+          PROJECT_PATH=$(find "$GITHUB_WORKSPACE" -maxdepth 4 -name "TheThangMay.xcodeproj" -type d | head -n 1)
+          if [ -z "$PROJECT_PATH" ]; then
+            echo "Không tìm thấy TheThangMay.xcodeproj"; exit 1
+          fi
+          echo "dir=$(dirname "$PROJECT_PATH")" >> "$GITHUB_OUTPUT"
+
+      - name: Cài chứng chỉ + provisioning profile
+        env:
+          CERT_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          CERT_PATH="$RUNNER_TEMP/build_cert.p12"
+          PROFILE_PATH="$RUNNER_TEMP/build_profile.mobileprovision"
+          echo -n "$CERT_BASE64" | base64 --decode > "$CERT_PATH"
+          echo -n "$PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security import "$CERT_PATH" -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      - name: Build (có ký)
+        working-directory: ${{ steps.find.outputs.dir }}
+        env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          PROFILE_NAME: ${{ secrets.PROVISIONING_PROFILE_NAME }}
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project TheThangMay.xcodeproj \
+            -scheme TheThangMay \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            build
+
+      - name: Đóng gói .ipa
+        working-directory: ${{ steps.find.outputs.dir }}
+        run: |
+          APP_PATH=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name "*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then echo "Không thấy .app"; exit 1; fi
+          mkdir -p dist/Payload
+          cp -R "$APP_PATH" dist/Payload/
+          cd dist
+          zip -qry TheThangMay.ipa Payload
+          ls -lh TheThangMay.ipa
+
+      - name: Upload artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TheThangMay-ipa
+          path: ${{ steps.find.outputs.dir }}/dist/TheThangMay.ipa
+          if-no-files-found: error
+          retention-days: 30
