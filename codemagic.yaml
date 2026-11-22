@@ -1,0 +1,161 @@
+# Codemagic CI/CD — build file .ipa cho app "Thẻ Thang Máy"
+#
+# Cách dùng:
+#   1. Push repo lên GitHub / GitLab / Bitbucket.
+#   2. codemagic.io → Add application → chọn repo → chọn cấu hình "codemagic.yaml".
+#   3. Chạy workflow "ios-unsigned" → tải IPA chưa ký (không cần tài khoản Apple).
+#   4. Muốn IPA cài trực tiếp và NFC hoạt động:
+#        Teams → Integrations → App Store Connect → thêm API key, đặt tên "TheThangMayASC"
+#      rồi chạy workflow "ios-signed".
+
+workflows:
+  # ---------------------------------------------------------------------------
+  # 1. IPA CHƯA KÝ — không cần tài khoản Apple Developer
+  #    Cài lên iPhone bằng Sideloadly / AltStore (ký lại bằng Apple ID).
+  # ---------------------------------------------------------------------------
+  ios-unsigned:
+    name: iOS — IPA chưa ký
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      xcode: latest
+      vars:
+        SCHEME: TheThangMay
+        PROJECT_NAME: TheThangMay.xcodeproj
+    scripts:
+      - name: Tìm project
+        script: |
+          set -e
+          PROJECT=$(find . -maxdepth 4 -name "$PROJECT_NAME" -type d | head -n 1)
+          if [ -z "$PROJECT" ]; then
+            echo "Không tìm thấy $PROJECT_NAME trong repo"; exit 1
+          fi
+          echo "PROJECT_DIR=$(dirname "$PROJECT")" >> "$CM_ENV"
+          echo "Build tại: $(dirname "$PROJECT")"
+
+      - name: Build Release (không ký)
+        script: |
+          set -e
+          cd "$PROJECT_DIR"
+          xcodebuild \
+            -project "$PROJECT_NAME" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Đóng gói .ipa
+        script: |
+          set -e
+          cd "$PROJECT_DIR"
+          APP=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name "*.app" | head -n 1)
+          if [ -z "$APP" ]; then echo "Không thấy .app"; exit 1; fi
+          rm -rf dist
+          mkdir -p dist/Payload
+          cp -R "$APP" dist/Payload/
+          (cd dist && zip -qry TheThangMay-unsigned.ipa Payload)
+          ls -lh dist/TheThangMay-unsigned.ipa
+
+    artifacts:
+      - "**/*.ipa"
+
+  # ---------------------------------------------------------------------------
+  # 2. IPA CÓ KÝ — cài trực tiếp, NFC Tag Reading hoạt động
+  #    Cần: integration App Store Connect tên "TheThangMayASC"
+  # ---------------------------------------------------------------------------
+  ios-signed:
+    name: iOS — IPA có ký
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+    integrations:
+      app_store_connect: TheThangMayASC
+    environment:
+      xcode: latest
+      ios_signing:
+        distribution_type: development
+        bundle_identifier: com.duong.thethangmay
+      vars:
+        SCHEME: TheThangMay
+        PROJECT_NAME: TheThangMay.xcodeproj
+    scripts:
+      - name: Tìm project
+        script: |
+          set -e
+          PROJECT=$(find . -maxdepth 4 -name "$PROJECT_NAME" -type d | head -n 1)
+          if [ -z "$PROJECT" ]; then
+            echo "Không tìm thấy $PROJECT_NAME trong repo"; exit 1
+          fi
+          echo "PROJECT_DIR=$(dirname "$PROJECT")" >> "$CM_ENV"
+
+      - name: Áp dụng provisioning profile
+        script: |
+          set -e
+          cd "$PROJECT_DIR"
+          xcode-project use-profiles
+
+      - name: Build .ipa có ký
+        script: |
+          set -e
+          cd "$PROJECT_DIR"
+          xcode-project build-ipa \
+            --project "$PROJECT_NAME" \
+            --scheme "$SCHEME"
+
+    artifacts:
+      - "**/*.ipa"
+      - /tmp/xcodebuild_logs/*.log
+
+  # ---------------------------------------------------------------------------
+  # 3. TUỲ CHỌN — đẩy lên TestFlight
+  #    Cần thêm app record trên App Store Connect + integration như trên.
+  # ---------------------------------------------------------------------------
+  ios-testflight:
+    name: iOS — TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: TheThangMayASC
+    environment:
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.duong.thethangmay
+      vars:
+        SCHEME: TheThangMay
+        PROJECT_NAME: TheThangMay.xcodeproj
+    scripts:
+      - name: Tìm project
+        script: |
+          set -e
+          PROJECT=$(find . -maxdepth 4 -name "$PROJECT_NAME" -type d | head -n 1)
+          if [ -z "$PROJECT" ]; then
+            echo "Không tìm thấy $PROJECT_NAME trong repo"; exit 1
+          fi
+          echo "PROJECT_DIR=$(dirname "$PROJECT")" >> "$CM_ENV"
+
+      - name: Áp dụng provisioning profile
+        script: |
+          set -e
+          cd "$PROJECT_DIR"
+          xcode-project use-profiles
+
+      - name: Build .ipa
+        script: |
+          set -e
+          cd "$PROJECT_DIR"
+          xcode-project build-ipa \
+            --project "$PROJECT_NAME" \
+            --scheme "$SCHEME"
+
+    artifacts:
+      - "**/*.ipa"
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

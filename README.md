@@ -146,43 +146,69 @@ TheThangMay/
 
 ## 7. Xuất file `.ipa`
 
-### Cách A — GitHub Actions (không cần Mac, miễn phí)
+### Cách A — Codemagic (khuyến nghị, không cần Mac)
 
-Đã kèm sẵn workflow `.github/workflows/build-ipa.yml`.
+Project đã kèm `codemagic.yaml` với 3 workflow:
+
+| Workflow | Dùng khi | Kết quả |
+|---|---|---|
+| **iOS — IPA chưa ký** | Chưa có tài khoản Apple Developer | `.ipa` để Sideloadly ký lại |
+| **iOS — IPA có ký** | Có tài khoản Developer trả phí | `.ipa` cài trực tiếp, NFC chạy |
+| **iOS — TestFlight** | Muốn cài qua TestFlight | Build đẩy lên App Store Connect |
+
+**Bước 1 — đưa code lên GitHub:**
 
 ```bash
 cd TheThangMay
-git init
-git add .
-git commit -m "Thẻ Thang Máy iOS app"
-git branch -M main
 git remote add origin https://github.com/<user>/<repo>.git
 git push -u origin main
 ```
 
-1. Vào repo → tab **Actions** → **Build IPA (unsigned)** → **Run workflow**.
-2. Khoảng 3–5 phút, tải artefact **TheThangMay-unsigned-ipa** → giải nén được
-   `TheThangMay-unsigned.ipa`.
+**Bước 2 — nối Codemagic:**
 
-**IPA chưa ký thì cài thế nào?** Dùng **Sideloadly** hoặc **AltStore** trên PC/Mac để
-ký lại bằng Apple ID của bạn rồi cài lên iPhone:
+1. Vào [codemagic.io](https://codemagic.io) → đăng nhập bằng GitHub.
+2. **Add application** → chọn repo vừa push.
+3. Ở bước chọn cấu hình, chọn **codemagic.yaml** (đừng chọn Workflow Editor).
+4. Bấm **Start new build** → chọn workflow **iOS — IPA chưa ký**.
+5. Khoảng 4–6 phút → mở build → tab **Artifacts** → tải `TheThangMay-unsigned.ipa`.
 
-1. Cài [Sideloadly](https://sideloadly.io/), cắm iPhone, chọn file `.ipa`, nhập Apple ID.
-2. Trên iPhone: Cài đặt → Cài đặt chung → VPN & Quản lý thiết bị → tin cậy Apple ID.
-3. Mở app. Lưu ý: tài khoản **miễn phí** không có quyền NFC → chỉ dùng được phần
-   nhập tay/xem mã; muốn quét NFC cần tài khoản Developer trả phí.
+Gói miễn phí của Codemagic: **500 phút macOS/tháng**, mỗi lần build ~5 phút.
 
-### Cách B — IPA có ký sẵn (cài trực tiếp, NFC hoạt động)
+**Bước 3 (tuỳ chọn) — bật NFC bằng bản có ký:**
 
-Dùng `.github/workflows/build-ipa-signed.yml`. Thêm 6 secret trong
-**Settings → Secrets and variables → Actions**:
+1. **Teams → Integrations → App Store Connect** → **Add key**.
+2. Nhập Issuer ID, Key ID và file `.p8` (tải từ App Store Connect → Users and Access → Keys).
+3. Đặt tên integration đúng **`TheThangMayASC`** (khớp trong `codemagic.yaml`).
+4. Chạy workflow **iOS — IPA có ký** → tải `.ipa` ở tab Artifacts.
+
+> Lần đầu Codemagic có thể báo chưa có App ID / provisioning profile. Vào
+> developer.apple.com tạo App ID `com.duong.thethangmay` (bật capability
+> **NFC Tag Reading**) rồi chạy lại, hoặc đổi `bundle_identifier` trong
+> `codemagic.yaml` cho khớp App ID bạn đã có.
+
+**Cài IPA chưa ký lên iPhone:** dùng [Sideloadly](https://sideloadly.io/) — cắm iPhone,
+kéo file `.ipa`, nhập Apple ID, Start. Sau đó vào Cài đặt → Cài đặt chung →
+**VPN & Quản lý thiết bị** để tin cậy Apple ID.
+
+> Apple ID miễn phí **không có entitlement NFC** → app mở được, nhập tay/xem mã được,
+> nhưng bấm quét NFC sẽ báo lỗi. Muốn quét thẻ phải dùng bản **IPA có ký** với tài khoản
+> Developer trả phí.
+
+### Cách B — GitHub Actions
+
+Đã kèm `.github/workflows/build-ipa.yml` (chưa ký) và `build-ipa-signed.yml` (có ký).
+
+Repo → **Actions** → **Build IPA (unsigned)** → **Run workflow** → tải artifact
+`TheThangMay-unsigned-ipa`.
+
+Bản có ký cần 6 secret trong **Settings → Secrets and variables → Actions**:
 
 | Secret | Nội dung |
 |---|---|
-| `BUILD_CERTIFICATE_BASE64` | file `.p12` (certificate Development) mã hoá base64 |
+| `BUILD_CERTIFICATE_BASE64` | file `.p12` (certificate Development), base64 |
 | `P12_PASSWORD` | mật khẩu `.p12` |
-| `PROVISIONING_PROFILE_BASE64` | file `.mobileprovision` mã hoá base64 |
-| `PROVISIONING_PROFILE_NAME` | tên profile, ví dụ `TheThangMay Development` |
+| `PROVISIONING_PROFILE_BASE64` | file `.mobileprovision`, base64 |
+| `PROVISIONING_PROFILE_NAME` | tên profile trong Apple Developer |
 | `APPLE_TEAM_ID` | Team ID 10 ký tự |
 | `KEYCHAIN_PASSWORD` | mật khẩu tạm bất kỳ |
 
@@ -192,11 +218,6 @@ Tạo base64 trên Windows:
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("cert.p12")) | Set-Clipboard
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("profile.mobileprovision")) | Set-Clipboard
 ```
-
-Chạy workflow **Build IPA (signed)** → tải `TheThangMay-ipa`.
-
-> Provisioning profile phải có **iPhone của bạn trong danh sách thiết bị** và bật
-> capability **NFC Tag Reading**.
 
 ### Cách C — Có Mac
 
