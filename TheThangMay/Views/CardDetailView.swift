@@ -55,9 +55,10 @@ struct CardDetailView: View {
             }
         }
         .alert("Chưa có dịch vụ ký pass", isPresented: $showWalletHelp) {
+            Button("Dùng Chế độ quẹt") { showQuickTap = true }
             Button("Đã hiểu", role: .cancel) {}
         } message: {
-            Text("Apple Wallet chỉ nhận file .pkpass đã ký bằng chứng chỉ Pass Type ID.\n\nMở Cài đặt → dán địa chỉ máy chủ ký pass (kèm trong project ở thư mục wallet-server), sau đó bấm lại nút này.\n\nChưa có máy chủ? Dùng nút “Chế độ quẹt” để hiện mã toàn màn hình.")
+            Text("Apple Wallet chỉ nhận file .pkpass đã ký bằng chứng chỉ Pass Type ID (cần tài khoản Apple Developer).\n\nChưa cần Wallet vẫn dùng được: bấm “Chế độ quẹt” để hiện mã toàn màn hình, hoặc “Hiện UID” để chép UID.\n\nMuốn có pass thật: mở Cài đặt → dán URL máy chủ ký pass trong thư mục wallet-server.")
         }
     }
 
