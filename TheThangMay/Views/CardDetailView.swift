@@ -10,6 +10,7 @@ struct CardDetailView: View {
 
     @State private var showEditor = false
     @State private var showQuickTap = false
+    @State private var showUID = false
     @State private var showWalletHelp = false
 
     private var card: HomeCard? { store.card(with: cardID) }
@@ -48,6 +49,11 @@ struct CardDetailView: View {
                 QuickTapView(card: card)
             }
         }
+        .fullScreenCover(isPresented: $showUID) {
+            if let card {
+                UIDDisplayView(card: card)
+            }
+        }
         .alert("Chưa có dịch vụ ký pass", isPresented: $showWalletHelp) {
             Button("Đã hiểu", role: .cancel) {}
         } message: {
@@ -78,6 +84,14 @@ struct CardDetailView: View {
                     }
                     .buttonStyle(SecondaryButtonStyle())
                 }
+
+                Button {
+                    showUID = true
+                } label: {
+                    Label("Hiện UID toàn màn hình", systemImage: "number.square")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(SecondaryButtonStyle())
 
                 infoSection(for: card)
 

@@ -135,6 +135,11 @@ struct HelpView: View {
                 )
 
                 helpSection(
+                    title: "Thẻ MIFARE Classic 1K trắng (UID-only)",
+                    body: "Nếu dump cho thấy sector 1–15 toàn 0x00 và key FFFFFFFFFFFF thì hệ thống chỉ so UID. Khi đó chỉ cần thẻ magic 1K (ghi được block 0) chép đúng UID là mở được cửa — không cần quan tâm sector."
+                )
+
+                helpSection(
                     title: "Khi nào quẹt được bằng điện thoại?",
                     body: "Chỉ khi đầu đọc thang máy có camera/đầu quét QR, hoặc toà nhà đã hỗ trợ điện thoại (HomeKey, NFC pass). Với đầu đọc chỉ nhận thẻ vật lý, cách chắc chắn nhất vẫn là mang thẻ theo."
                 )
