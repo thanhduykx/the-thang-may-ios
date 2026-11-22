@@ -36,11 +36,15 @@ final class NFCScanner: NSObject, ObservableObject {
         errorMessage = nil
         isScanning = true
 
-        let session = NFCTagReaderSession(
+        guard let session = NFCTagReaderSession(
             pollingOption: [.iso14443, .iso15693],
             delegate: self,
             queue: nil
-        )
+        ) else {
+            isScanning = false
+            onError("Không tạo được phiên quét NFC. Kiểm tra quyền NFC của app rồi thử lại.")
+            return
+        }
         session.alertMessage = "Đưa phần trên của iPhone lại gần thẻ nhà, giữ yên 2 giây"
         self.session = session
         session.begin()
