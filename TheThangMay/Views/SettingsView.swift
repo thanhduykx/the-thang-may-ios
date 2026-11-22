@@ -9,20 +9,32 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
-                HStack {
-                    Image(systemName: NFCScanner.isAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                        .foregroundStyle(NFCScanner.isAvailable ? .green : .orange)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Quét NFC")
-                        Text(NFCScanner.isAvailable
-                             ? "Thiết bị hỗ trợ đọc thẻ."
-                             : "Thiết bị không hỗ trợ, hoặc app chưa được cấp quyền NFC.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                statusRow(
+                    title: "Phần cứng NFC",
+                    ok: NFCScanner.isAvailable,
+                    okText: "Sẵn sàng đọc thẻ",
+                    badText: "Không khả dụng"
+                )
+                statusRow(
+                    title: "Quyền NFC của app",
+                    ok: NFCScanner.hasNFCEntitlement,
+                    okText: "Đã có entitlement",
+                    badText: "Thiếu entitlement"
+                )
+                statusRow(
+                    title: "Mô tả quyền (Info.plist)",
+                    ok: NFCScanner.hasUsageDescription,
+                    okText: "Đã có NFCReaderUsageDescription",
+                    badText: "Thiếu NFCReaderUsageDescription"
+                )
             } header: {
-                Text("Phần cứng")
+                Text("NFC")
+            } footer: {
+                if !NFCScanner.hasNFCEntitlement {
+                    Text("App thiếu entitlement NFC — đây chính là lý do báo “không hỗ trợ quét”. Cần bản IPA được ký bằng tài khoản Apple Developer trả phí; Apple ID miễn phí không cấp quyền NFC Tag Reading.")
+                } else if !NFCScanner.isAvailable {
+                    Text("Entitlement đã có nhưng phiên quét chưa sẵn sàng. Đóng app, tắt bảng Apple Pay/Face ID rồi mở lại.")
+                }
             }
 
             Section {
@@ -66,6 +78,19 @@ struct SettingsView: View {
         }
     }
 
+    private func statusRow(title: String, ok: Bool, okText: String, badText: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: ok ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundStyle(ok ? Color.green : Color.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                Text(ok ? okText : badText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private var diagnosticsText: String {
         var lines = ["BÁO CÁO THẺ — Thẻ Thang Máy", ""]
         for card in store.cards {
@@ -102,6 +127,11 @@ struct HelpView: View {
                 helpSection(
                     title: "Thẻ 125 kHz (thẻ dẹt, không chip)",
                     body: "iPhone không đọc được vì tần số khác. Hãy nhìn số in trên thẻ và nhập tay. Nếu thẻ không in số, cần một đầu đọc 125 kHz rời."
+                )
+
+                helpSection(
+                    title: "Vì sao báo “máy không hỗ trợ quét NFC”?",
+                    body: "Không phải lỗi phần cứng. App phải được ký với entitlement NFC (NFC Tag Reading). Apple ID miễn phí / Sideloadly không cấp quyền này, nên iPhone coi app là không có NFC. Kiểm tra trong Cài đặt → mục NFC. Muốn quét thật cần bản IPA ký bằng tài khoản Apple Developer trả phí."
                 )
 
                 helpSection(

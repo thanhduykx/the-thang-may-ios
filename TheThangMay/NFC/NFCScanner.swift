@@ -1,5 +1,6 @@
 import Foundation
 import CoreNFC
+import Security
 
 /// Kết quả một lần đọc thẻ.
 struct ScanResult {
@@ -23,10 +24,29 @@ final class NFCScanner: NSObject, ObservableObject {
 
     static var isAvailable: Bool { NFCTagReaderSession.readingAvailable }
 
+    /// App có được ký với entitlement NFC hay không.
+    static var hasNFCEntitlement: Bool {
+        guard let task = SecTaskCreateFromSelf(nil),
+              let value = SecTaskCopyValueForEntitlement(
+                  task,
+                  "com.apple.developer.nfc.readersession.formats" as CFString,
+                  nil
+              ) else {
+            return false
+        }
+        if let formats = value as? [String] { return !formats.isEmpty }
+        return true
+    }
+
+    /// Info.plist có NFCReaderUsageDescription hay không.
+    static var hasUsageDescription: Bool {
+        Bundle.main.object(forInfoDictionaryKey: "NFCReaderUsageDescription") != nil
+    }
+
     func start(onResult: @escaping (ScanResult) -> Void,
                onError: @escaping (String) -> Void) {
         guard NFCTagReaderSession.readingAvailable else {
-            onError("Máy này không hỗ trợ quét NFC. Bạn vẫn có thể nhập mã thẻ bằng tay.")
+            onError("Máy báo không hỗ trợ quét NFC. Thường do app chưa được ký với quyền NFC — Apple ID miễn phí không có quyền này. Bạn vẫn có thể nhập mã thẻ bằng tay.")
             return
         }
 
