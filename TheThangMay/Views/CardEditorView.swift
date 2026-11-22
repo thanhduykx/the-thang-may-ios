@@ -28,12 +28,27 @@ struct CardEditorView: View {
 
     var body: some View {
         Form {
-            Section("Thông tin thẻ") {
+            Section {
                 TextField("Tên thẻ (VD: Thẻ thang máy)", text: $draft.name)
                 TextField("Mã / UID in trên thẻ", text: $draft.barcodeValue)
                     .textInputAutocapitalization(.characters)
                     .autocorrectionDisabled()
                     .font(.body.monospaced())
+                TextField("UID thẻ (VD: 5B:98:53:25)", text: $draft.uid)
+                    .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled()
+                    .font(.body.monospaced())
+                if !draft.uid.isEmpty {
+                    Button {
+                        draft.barcodeValue = draft.uid
+                            .replacingOccurrences(of: ":", with: "")
+                            .replacingOccurrences(of: " ", with: "")
+                            .uppercased()
+                    } label: {
+                        Label("Dùng UID làm mã quét", systemImage: "arrow.down.doc")
+                            .font(.subheadline)
+                    }
+                }
                 Picker("Kiểu mã", selection: $draft.format) {
                     ForEach(BarcodeFormat.allCases) { format in
                         Text(format.label).tag(format)
@@ -44,6 +59,11 @@ struct CardEditorView: View {
                         Text(tech.label).tag(tech)
                     }
                 }
+            } header: {
+                Text("Thông tin thẻ")
+            } footer: {
+                Text(draft.technology.iphoneNote)
+                    .font(.caption)
             }
 
             Section {
