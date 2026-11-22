@@ -1,0 +1,17 @@
+# Giữ LF cho file script/cấu hình để chạy được trên macOS và GitHub Actions
+* text=auto eol=lf
+
+*.sh       text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.swift    text eol=lf
+*.pbxproj  text eol=lf
+*.pbxproj  text eol=lf
+*.xcscheme text eol=lf
+*.entitlements text eol=lf
+*.json     text eol=lf
+*.md       text eol=lf
+
+*.png binary
+*.p12 binary
+*.mobileprovision binary
